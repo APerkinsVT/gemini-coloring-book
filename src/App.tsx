@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { ColorInfo, UploadedImage, ColoringPageResult } from './types';
 import { extractPalette, generateLineDrawing, generateColoringInstructions } from './services/geminiService';
 import Header from './components/Header';
@@ -7,9 +8,6 @@ import Loader from './components/Loader';
 import ColorTable from './components/ColorTable';
 import ColoringInstructions from './components/ColoringInstructions';
 import DownloadIcon from './components/icons/DownloadIcon';
-
-// Declare the libraries loaded from CDN to TypeScript
-declare const jspdf: any;
 
 
 const App: React.FC = () => {
@@ -101,7 +99,6 @@ const App: React.FC = () => {
     setIsDownloading(true);
     setError(null);
     try {
-        const { jsPDF } = jspdf;
         const isLandscape = orientation === 'landscape';
 
         const pdf = new jsPDF({
