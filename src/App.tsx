@@ -1,14 +1,16 @@
 
-import React, { useState } from 'react';
-import { jsPDF } from 'jspdf';
+import React, { useState, useRef } from 'react';
 import { ColorInfo, UploadedImage, ColoringPageResult } from './types';
-import { extractPalette, generateLineDrawing, generateColoringInstructions } from './services/geminiService';
+import { extractPalette, generateColoringPage } from './services/geminiService';
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
 import Loader from './components/Loader';
 import ColorTable from './components/ColorTable';
 import ColoringInstructions from './components/ColoringInstructions';
 import DownloadIcon from './components/icons/DownloadIcon';
+
+// Declare the libraries loaded from CDN to TypeScript
+declare const jspdf: any;
 
 
 const App: React.FC = () => {
@@ -41,35 +43,17 @@ const App: React.FC = () => {
     setColoringPageResult(null);
 
     try {
-      // Step 1: Start palette extraction and line drawing generation in parallel.
-      // These two tasks are independent and can run at the same time.
-      const palettePromise = extractPalette(uploadedImage.base64, uploadedImage.mimeType);
-      const lineDrawingPromise = generateLineDrawing(uploadedImage.base64, uploadedImage.mimeType);
-
-      // Await the palette results first. We need them to generate instructions,
-      // and this allows us to show the color table to the user while other parts are still loading.
-      const paletteResults = await palettePromise;
-      
-      if (!paletteResults || paletteResults.length === 0) {
-        throw new Error("Could not extract a color palette. Please try a different image.");
-      }
+      // Step 1: Extract Palette
+      const paletteResults = await extractPalette(uploadedImage.base64, uploadedImage.mimeType);
       setColorData(paletteResults);
 
-      // Step 2: Now that we have the palette, start generating the instructions.
-      // This can run concurrently with the line drawing generation if it's still running.
-      const instructionsPromise = generateColoringInstructions(uploadedImage.base64, uploadedImage.mimeType, paletteResults);
-
-      // Step 3: Wait for the remaining two promises (line drawing and instructions) to complete.
-      const [imageUrl, instructions] = await Promise.all([
-        lineDrawingPromise,
-        instructionsPromise,
-      ]);
-      
-      if (!imageUrl || !instructions) {
-        throw new Error("Failed to generate either the image or the instructions.");
+      // Step 2: Generate Coloring Page and Instructions
+      if (paletteResults.length > 0) {
+        const result = await generateColoringPage(uploadedImage.base64, uploadedImage.mimeType, paletteResults);
+        setColoringPageResult(result);
+      } else {
+        throw new Error("Could not extract a color palette to generate the image.");
       }
-      
-      setColoringPageResult({ imageUrl, instructions });
       
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred.");
@@ -100,6 +84,7 @@ const App: React.FC = () => {
     setIsDownloading(true);
     setError(null);
     try {
+        const { jsPDF } = jspdf;
         const isLandscape = orientation === 'landscape';
 
         const pdf = new jsPDF({
@@ -152,7 +137,8 @@ const App: React.FC = () => {
         // Add Original Image
         const originalImg = new Image();
         originalImg.crossOrigin = "anonymous";
-        originalImg.src = uploadedImage.previewUrl;
+        // ** FIX **: Use the base64 data URL instead of the blob previewUrl to avoid CORS issues.
+        originalImg.src = `data:${uploadedImage.mimeType};base64,${uploadedImage.base64}`;
         await new Promise((resolve, reject) => {
             originalImg.onload = resolve;
             originalImg.onerror = reject;
@@ -281,7 +267,7 @@ const App: React.FC = () => {
 
     } catch (e) {
         console.error("Failed to generate PDF", e);
-        setError("Could not generate the PDF. The image might be protected by CORS policy. Please try a different image.");
+        setError("Could not generate the PDF. There was an issue processing the images.");
     } finally {
         setIsDownloading(false);
     }
