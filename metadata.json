@@ -1,5 +1,0 @@
-{
-  "name": "My Coloring Book Generator",
-  "description": "Upload any image, and this application will generate a custom coloring book page, complete with a color palette, guide and line drawing.",
-  "requestFramePermissions": []
-}
