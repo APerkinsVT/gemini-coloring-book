@@ -1,8 +1,9 @@
+
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { ColorInfo, ColoringPageResult } from '../types';
+import { ColorInfo } from '../types';
 
 const faberCastellColors = `
-225: Dark Red, 226: Alizarin Crimson, 230: Cold Grey I, 233: Cold Grey IV, 267: Pine Green, 270: Warm Grey I, 273: Warm Grey IV, 280: Burnt Umber, 283: Burnt Siena, 101: Medium White, 102: Cream, 103: Ivory, 104: Light Yellow Glaze, 106: Light Chrome Yellow, 109: Dark Chrome Yellow, 113: Orange Glaze, 118: Scarlet Red, 124: Rose Carmine, 127: Pink Carmine, 131: Medium Flesh, 132: Light Flesh, 138: Violet, 140: Light Ultramarine, 143: Cobalt Blue, 149: Bluish Turquoise, 151: Helioblue-reddish, 153: Cobalt Turquoise, 155: Helio Turquoise, 156: Cobalt Green, 157: Dark Indigo, 159: Hooker's Green, 160: Manganese Violet, 165: Juniper Green, 167: Permanent Green Olive, 168: Earth Green Yellowish, 169: Caput Mortuum, 170: May Green, 172: Earth Green, 173: Olive Green Yellowish, 174: Chrome Green Opaque, 175: Dark Sepia, 176: Van Dyck Brown, 177: Walnut Brown, 179: Bistre, 180: Raw Umber, 181: Payne's Grey, 182: Brown Ochre, 183: Light Yellow Ochre, 184: Dark Naples Ochre, 185: Naples Yellow, 186: Terracotta, 187: Burnt Ochre, 188: Sanguine, 189: Cinnamon, 190: Venetian Red, 191: Pompeian Red, 192: Indian Red, 193: Burnt Carmine, 194: Red-Violet, 199: Black
+225: Dark Red, 226: Alizarin Crimson, 230: Cold Grey I, 233: Cold Grey IV, 267: Pine Green, 270: Warm Grey I, 273: Warm Grey IV, 280: Burnt Umber, 283: Burnt Siena, 101: Medium White, 102: Cream, 103: Ivory, 104: Light Yellow Glaze, 106: Light Chrome Yellow, 109: Dark Chrome Yellow, 113: Orange Glaze, 118: Scarlet Red, 124: Rose Carmine, 127: Pink Carmine, 131: Medium Flesh, 132: Light Flesh, 138: Violet, 140: Light Ultramine, 143: Cobalt Blue, 149: Bluish Turquoise, 151: Helioblue-reddish, 153: Cobalt Turquoise, 155: Helio Turquoise, 156: Cobalt Green, 157: Dark Indigo, 159: Hooker's Green, 160: Manganese Violet, 165: Juniper Green, 167: Permanent Green Olive, 168: Earth Green Yellowish, 169: Caput Mortuum, 170: May Green, 172: Earth Green, 173: Olive Green Yellowish, 174: Chrome Green Opaque, 175: Dark Sepia, 176: Van Dyck Brown, 177: Walnut Brown, 179: Bistre, 180: Raw Umber, 181: Payne's Grey, 182: Brown Ochre, 183: Light Yellow Ochre, 184: Dark Naples Ochre, 185: Naples Yellow, 186: Terracotta, 187: Burnt Ochre, 188: Sanguine, 189: Cinnamon, 190: Venetian Red, 191: Pompeian Red, 192: Indian Red, 193: Burnt Carmine, 194: Red-Violet, 199: Black
 `;
 
 const colorSchema = {
@@ -35,15 +36,19 @@ const colorSchema = {
   },
 };
 
+const getAiClient = () => {
+  const apiKey = import.meta.env.VITE_API_KEY;
+  if (!apiKey) {
+    throw new Error("VITE_API_KEY environment variable is not set.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
 export const extractPalette = async (
   base64Image: string,
   mimeType: string
 ): Promise<ColorInfo[]> => {
-  // Fix: Use process.env.API_KEY per coding guidelines.
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
-  }
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiClient();
 
   const imagePart = {
     inlineData: {
@@ -105,11 +110,7 @@ export const generateLineDrawing = async (
   base64Image: string,
   mimeType: string
 ): Promise<string> => {
-  // Fix: Use process.env.API_KEY per coding guidelines.
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
-  }
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiClient();
 
   const imagePart = {
     inlineData: {
@@ -165,11 +166,7 @@ export const generateColoringInstructions = async (
   mimeType: string,
   palette: ColorInfo[]
 ): Promise<string> => {
-  // Fix: Use process.env.API_KEY per coding guidelines.
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
-  }
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAiClient();
 
   const imagePart = {
     inlineData: {
