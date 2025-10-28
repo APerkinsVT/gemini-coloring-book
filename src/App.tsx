@@ -1,346 +1,115 @@
+import { useState } from "react";
+import { Dropzone } from "./components/Dropzone";
+import { ResultBlock, PaletteRow } from "./components/ResultBlock";
 
-import React, { useState, useRef } from 'react';
-import { ColorInfo, UploadedImage, ColoringPageResult } from './types';
-import { extractPalette, generateColoringPage } from './services/geminiService';
-import Header from './components/Header';
-import ImageUploader from './components/ImageUploader';
-import Loader from './components/Loader';
-import ColorTable from './components/ColorTable';
-import ColoringInstructions from './components/ColoringInstructions';
-import DownloadIcon from './components/icons/DownloadIcon';
+type GuidePoint = { label: string; text: string };
 
-// Declare the libraries loaded from CDN to TypeScript
-declare const jspdf: any;
+export default function App() {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState<string>("");               // e.g., "F1"
+  const [sketchUrl, setSketchUrl] = useState<string | null>(null);
+  const [palette, setPalette] = useState<PaletteRow[]>([]);
+  const [guide, setGuide] = useState<GuidePoint[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-
-const App: React.FC = () => {
-  const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
-  const [colorData, setColorData] = useState<ColorInfo[]>([]);
-  const [coloringPageResult, setColoringPageResult] = useState<ColoringPageResult | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
-
-
-  const handleImageUpload = (image: UploadedImage) => {
-    setUploadedImage(image);
-    setOrientation(image.width > image.height ? 'landscape' : 'portrait');
-    setColorData([]);
-    setError(null);
-    setColoringPageResult(null);
-  };
-
-  const handleGenerateClick = async () => {
-    if (!uploadedImage) {
-      setError("Please upload an image first.");
-      return;
-    }
-
+  // Simulate your existing convert() flow; just wire your current logic here.
+  async function handleCreate() {
+    if (!photoUrl) return;
     setIsLoading(true);
-    setError(null);
-    setColorData([]);
-    setColoringPageResult(null);
 
-    try {
-      // Step 1: Extract Palette
-      const paletteResults = await extractPalette(uploadedImage.base64, uploadedImage.mimeType);
-      setColorData(paletteResults);
+    // TODO: call your Gemini/processing service here.
+    // The values below are placeholders to demonstrate layout.
+    await new Promise((r) => setTimeout(r, 1200));
+    setTitle("F1");
+    setSketchUrl("/sample-sketch.png"); // serve a local asset or returned URL
+    setGuide([
+      { label: "Car Body (Base)", text: "Flat body fill; add light highlights." },
+      { label: "Tires", text: "Use very dark grays; leave a crisp edge." },
+      { label: "Deep Shadow", text: "Cast shadows under wings and sidepods." },
+      { label: "Metal/Trim", text: "Light gray; keep reflections simple." },
+      { label: "Track/Surface", text: "Mid gray; keep strokes consistent." },
+    ]);
+    setPalette([
+      { swatch: "#181A1B", name: "Tire Black", realWorld: "Carbon Black", rgb: "24,26,27" },
+      { swatch: "#B22E3E", name: "Car Body Red", realWorld: "Race Red", rgb: "178,46,62" },
+      { swatch: "#8D8F94", name: "Metal Trim", realWorld: "Steel Gray", rgb: "141,143,148" },
+      { swatch: "#CFCFD3", name: "Light Highlights", realWorld: "Cool White", rgb: "207,207,211" },
+      { swatch: "#3B3F4A", name: "Track Shadow", realWorld: "Asphalt Gray", rgb: "59,63,74" },
+      { swatch: "#7C838E", name: "Track Midtone", realWorld: "Medium Slate", rgb: "124,131,142" },
+      { swatch: "#0A0D12", name: "Deep Accents", realWorld: "Onyx", rgb: "10,13,18" },
+    ]);
+    setIsLoading(false);
+  }
 
-      // Step 2: Generate Coloring Page and Instructions
-      if (paletteResults.length > 0) {
-        const result = await generateColoringPage(uploadedImage.base64, uploadedImage.mimeType, paletteResults);
-        setColoringPageResult(result);
-      } else {
-        throw new Error("Could not extract a color palette to generate the image.");
-      }
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const toTitleCase = (str: string): string => {
-    if (!str) return '';
-    const baseName = str.split('.').slice(0, -1).join('.') || str;
-    return baseName
-      .replace(/[-_]/g, ' ')
-      .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
-  const pictureTitle = uploadedImage ? toTitleCase(uploadedImage.name) : 'Your Coloring Page';
-  
-  const handleDownloadPdf = async () => {
-    if (!coloringPageResult || !uploadedImage) {
-        setError("Cannot download PDF: Missing content.");
-        return;
-    }
-
-    setIsDownloading(true);
-    setError(null);
-    try {
-        const { jsPDF } = jspdf;
-        const isLandscape = orientation === 'landscape';
-
-        const pdf = new jsPDF({
-            orientation: isLandscape ? 'landscape' : 'portrait',
-            unit: 'in',
-            format: 'letter'
-        });
-
-        const pageW = isLandscape ? 11 : 8.5;
-        const pageH = isLandscape ? 8.5 : 11;
-        const margin = 0.5;
-        const contentW = pageW - margin * 2;
-        
-        // --- PAGE 1: DRAWING + TITLE ---
-        const coloringImg = new Image();
-        coloringImg.crossOrigin = "anonymous";
-        coloringImg.src = coloringPageResult.imageUrl;
-        await new Promise((resolve, reject) => {
-            coloringImg.onload = resolve;
-            coloringImg.onerror = reject;
-        });
-
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(18);
-        pdf.text(pictureTitle, pageW / 2, margin + 0.3, { align: 'center' });
-
-        const imageStartY = margin + 0.6;
-        const imageContentH = pageH - imageStartY - margin;
-
-        const imgAspectRatio = coloringImg.width / coloringImg.height;
-        let finalW, finalH;
-
-        if (imgAspectRatio > (contentW / imageContentH)) {
-            finalW = contentW;
-            finalH = finalW / imgAspectRatio;
-        } else {
-            finalH = imageContentH;
-            finalW = finalH * imgAspectRatio;
-        }
-
-        const x = margin + (contentW - finalW) / 2;
-        const y = imageStartY + (imageContentH - finalH) / 2;
-        pdf.addImage(coloringImg, 'PNG', x, y, finalW, finalH);
-
-
-        // --- PAGE 2: ORIGINAL IMAGE + GUIDE ---
-        pdf.addPage();
-        let currentY = margin;
-
-        // Add Original Image
-        const originalImg = new Image();
-        originalImg.crossOrigin = "anonymous";
-        // ** FIX **: Use the base64 data URL instead of the blob previewUrl to avoid CORS issues.
-        originalImg.src = `data:${uploadedImage.mimeType};base64,${uploadedImage.base64}`;
-        await new Promise((resolve, reject) => {
-            originalImg.onload = resolve;
-            originalImg.onerror = reject;
-        });
-
-        const maxDim = 3; // 3 inches for the longer side
-        const origAspectRatio = originalImg.width / originalImg.height;
-        let finalOrigW, finalOrigH;
-        if (origAspectRatio >= 1) { // Landscape or square
-            finalOrigW = maxDim;
-            finalOrigH = finalOrigW / origAspectRatio;
-        } else { // Portrait
-            finalOrigH = maxDim;
-            finalOrigW = finalOrigH * origAspectRatio;
-        }
-        const xOrig = margin + (contentW - finalOrigW) / 2;
-        pdf.addImage(originalImg, 'PNG', xOrig, currentY, finalOrigW, finalOrigH);
-        currentY += finalOrigH + 0.3;
-
-        // Add Coloring Guide Text
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(18);
-        pdf.text("Coloring Guide", pageW / 2, currentY, { align: 'center' });
-        currentY += 0.5;
-
-        pdf.setFontSize(11);
-        
-        const lines = coloringPageResult.instructions.split('\n').filter(line => line.trim() !== '');
-        const lineHeight = 0.25;
-        const bulletIndent = 0.2;
-
-        lines.forEach(line => {
-          if (currentY > pageH - margin) {
-            pdf.addPage();
-            currentY = margin;
-          }
-
-          const isListItem = /^\s*[-*]/.test(line);
-          const cleanLine = line.replace(/^\s*[-*]\s*/, '');
-          
-          let currentX = margin;
-          
-          if (isListItem) {
-            pdf.setFont(undefined, 'bold');
-            pdf.text('•', currentX, currentY);
-            currentX += bulletIndent;
-          }
-
-          const parts = cleanLine.split(/(\*\*.*?\*\*)/g).filter(p => p);
-          
-          parts.forEach(part => {
-            const isBold = part.startsWith('**') && part.endsWith('**');
-            const text = isBold ? part.slice(2, -2) : part;
-            
-            pdf.setFont(undefined, isBold ? 'bold' : 'normal');
-            
-            const textWidth = pdf.getStringUnitWidth(text) * pdf.getFontSize() / pdf.internal.scaleFactor;
-            if (currentX + textWidth > pageW - margin) {
-                currentY += lineHeight;
-                currentX = margin + (isListItem ? bulletIndent : 0);
-            }
-            pdf.text(text, currentX, currentY);
-            currentX += textWidth;
-          });
-          currentY += lineHeight;
-        });
-
-
-        // --- PAGE 3: KEY ---
-        pdf.addPage();
-        currentY = margin;
-        
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(18);
-        pdf.text("Color Key", pageW / 2, currentY, { align: 'center' });
-        currentY += 0.5;
-
-        const tableHeaders = ["Swatch", "Hex", "Picture Part", "Faber-Castell Color", "FB #"];
-        const columnWidths = [0.7, 1.0, 1.8, isLandscape ? 5.8 : 3.3, 0.7];
-        const rowHeight = 0.4;
-        const headerHeight = 0.3;
-
-        const drawTableHeaders = (yPos: number) => {
-            pdf.setFontSize(10);
-            pdf.setFont(undefined, 'bold');
-            let xPos = margin;
-            tableHeaders.forEach((header, i) => {
-                pdf.text(header, xPos, yPos);
-                xPos += columnWidths[i];
-            });
-        };
-
-        const drawTableRow = (color: ColorInfo, yPos: number) => {
-             pdf.setFontSize(9);
-             pdf.setFont(undefined, 'normal');
-             let xPos = margin;
-             
-             pdf.setFillColor(color.hex.replace('#', ''));
-             pdf.rect(xPos + 0.05, yPos - 0.2, 0.25, 0.25, 'F');
-             xPos += columnWidths[0];
-             
-             pdf.text(color.hex, xPos, yPos);
-             xPos += columnWidths[1];
-             pdf.text(color.picturePart, xPos, yPos);
-             xPos += columnWidths[2];
-             pdf.text(color.fbPencilColor, xPos, yPos);
-             xPos += columnWidths[3];
-             pdf.text(color.fbNumber, xPos + 0.5, yPos, {align: 'center'});
-        };
-
-        drawTableHeaders(currentY);
-        currentY += headerHeight;
-
-        for (const color of colorData) {
-            if (currentY + rowHeight > pageH - margin) {
-                pdf.addPage();
-                currentY = margin;
-                drawTableHeaders(currentY);
-                currentY += headerHeight;
-            }
-            drawTableRow(color, currentY);
-            currentY += rowHeight;
-        }
-
-        pdf.save(`${pictureTitle.replace(/\s/g, '_')}_Coloring_Page.pdf`);
-
-    } catch (e) {
-        console.error("Failed to generate PDF", e);
-        setError("Could not generate the PDF. There was an issue processing the images.");
-    } finally {
-        setIsDownloading(false);
-    }
-};
-
-  const ResultsDisplay = () => (
-     <>
-      <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-200">{pictureTitle}</h2>
-      </div>
-      
-      <div className={`mt-6 ${orientation === 'portrait' ? 'grid grid-cols-1 md:grid-cols-2 gap-8 items-start' : 'flex flex-col items-center gap-8'}`}>
-          <div className="w-full">
-              <img src={coloringPageResult!.imageUrl} alt="Generated coloring page drawing" className="rounded-lg shadow-lg border border-slate-700 w-full" />
-          </div>
-          <div className={`w-full ${orientation === 'landscape' ? 'max-w-4xl' : ''}`}>
-              <div className="bg-slate-900 p-1 mb-8">
-                <h2 className="text-2xl font-bold text-slate-300 mb-4 text-center">Original Photo</h2>
-                <img src={uploadedImage!.previewUrl} alt="Original uploaded photo" className="rounded-lg shadow-lg border border-slate-700 w-full max-w-sm mx-auto" />
-              </div>
-              <div className="bg-slate-900 p-1">
-                <h2 className="text-2xl font-bold text-slate-300 mb-4 text-center">Coloring Guide</h2>
-                <ColoringInstructions instructions={coloringPageResult!.instructions} />
-              </div>
-              <div className="bg-slate-900 p-1">
-                <ColorTable colors={colorData} />
-              </div>
-          </div>
-      </div>
-
-      <div className="text-center mt-8">
-          <button
-              onClick={handleDownloadPdf}
-              disabled={isDownloading}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg shadow-lg hover:from-emerald-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-slate-900 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-              <DownloadIcon className="w-5 h-5"/>
-              {isDownloading ? 'Downloading...' : 'Download PDF'}
-          </button>
-      </div>
-    </>
-  );
+  function handleDownload() {
+    // TODO: use your existing PDF export. This is a stub.
+    alert("Wire this to your PDF generator/export.");
+  }
 
   return (
-    <div className="min-h-screen bg-slate-900 font-sans">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <Header />
-        
-        <main className="mt-8 flex flex-col items-center space-y-6">
-          <ImageUploader onImageUpload={handleImageUpload} uploadedImage={uploadedImage} />
+    <main className="min-h-screen bg-[#0f1a2a] text-slate-100">
+      <header className="border-b border-white/10">
+        <div className="mx-auto max-w-3xl px-4 py-8">
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-500">
+            Gemini Color by Number Generator
+          </h1>
+          <p className="mt-2 text-slate-300">
+            Turn any photo into a relaxing color-by-number activity. Upload an image and let Gemini
+            create a numbered line drawing and matching color palette.
+          </p>
+        </div>
+      </header>
 
-          <button
-            onClick={handleGenerateClick}
-            disabled={!uploadedImage || isLoading}
-            className="inline-flex items-center justify-center px-8 py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-fuchsia-500 rounded-lg shadow-lg hover:from-cyan-600 hover:to-fuchsia-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-900 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50"
-          >
-            {isLoading ? 'Generating...' : 'Create Coloring Page'}
-          </button>
+      <section className="mx-auto max-w-3xl px-4">
+        {!sketchUrl ? (
+          // BEFORE STATE
+          <div className="py-10 md:py-16">
+            <Dropzone
+              value={photoUrl}
+              onChange={setPhotoUrl}
+              label="Click to upload or drag and drop"
+              hint="PNG, JPG or WEBP"
+            />
 
-          <div className="w-full mt-8">
-            {isLoading && <Loader />}
-            {error && (
-              <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg text-center" role="alert">
-                <strong className="font-bold">Error: </strong>
-                <span className="block sm:inline">{error}</span>
-              </div>
-            )}
-            {coloringPageResult && colorData.length > 0 && <ResultsDisplay />}
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={handleCreate}
+                disabled={!photoUrl || isLoading}
+                className="px-6 py-3 rounded-md bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white font-medium disabled:opacity-40"
+              >
+                {isLoading ? "Creating…" : "Create Coloring Page"}
+              </button>
+            </div>
           </div>
-        </main>
-      </div>
-    </div>
-  );
-};
+        ) : (
+          // AFTER STATE
+          <div className="py-8 md:py-12 space-y-8">
+            <div className="flex justify-center">
+              <span className="inline-flex items-center rounded-full bg-white/5 border border-white/10 px-3 py-1 text-sm text-slate-300">
+                {title}
+              </span>
+            </div>
 
-export default App;
+            <ResultBlock
+              sketchUrl={sketchUrl}
+              originalUrl={photoUrl!}
+              guide={guide}
+              palette={palette}
+              onDownload={handleDownload}
+            />
+          </div>
+        )}
+      </section>
+
+      <footer className="border-t border-white/10">
+        <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-slate-400 flex items-center justify-between">
+          <span>© {new Date().getFullYear()} Gemini Coloring Book</span>
+          <nav className="space-x-4">
+            <a className="hover:text-slate-200" href="/privacy">Privacy</a>
+            <a className="hover:text-slate-200" href="/terms">Terms</a>
+          </nav>
+        </div>
+      </footer>
+    </main>
+  );
+}

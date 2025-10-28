@@ -92,3 +92,6 @@ dist
 
 # Google API
 Google_AI_Studio_API_Keys.txt
+
+# App rollback
+App.tsx_bak.tsx
